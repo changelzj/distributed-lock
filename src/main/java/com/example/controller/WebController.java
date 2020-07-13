@@ -23,6 +23,8 @@ public class WebController {
 
     @Autowired
     private RedissonClient redissonClient;
+
+    private String str;
     
     @RequestMapping("increment")
     public void increment() {
@@ -73,27 +75,31 @@ public class WebController {
         
     }
     
-    private String str;
+    
     
     
     @RequestMapping("read")
     public String read() {
         RReadWriteLock lock = redissonClient.getReadWriteLock("readwrite_lock");
         RLock rLock = lock.readLock();
+        rLock.lock();
         String a = str;
         rLock.unlock();
         return a;
     }
 
     @RequestMapping("write")
-    public void write() throws InterruptedException {
+    public String write() throws InterruptedException {
         RReadWriteLock lock = redissonClient.getReadWriteLock("readwrite_lock");
         RLock rLock = lock.writeLock();
         rLock.lock();
         TimeUnit.SECONDS.sleep(10);
-        str = "hello";
+        str = UUID.randomUUID().toString();
         rLock.unlock();
+        return str;
     }
+    
+    
     
     
 }
