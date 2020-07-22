@@ -1,8 +1,10 @@
 package com.example.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RCountDownLatch;
 import org.redisson.api.RLock;
 import org.redisson.api.RReadWriteLock;
+import org.redisson.api.RSemaphore;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -56,8 +58,8 @@ public class WebController {
     /**
      * 可重入锁
      */
-    @RequestMapping("increment2")
-    public void increment2() {
+    @RequestMapping("lock")
+    public void lock() {
         RLock lock = redissonClient.getLock("lock");
         try {
             lock.lock(3, TimeUnit.SECONDS);
@@ -99,7 +101,37 @@ public class WebController {
         return str;
     }
     
-    
-    
-    
+    @RequestMapping("semaphore")
+    public String semaphore() {
+        RSemaphore semaphore = redissonClient.getSemaphore("semaphore");
+        try {
+            semaphore.acquire();
+            System.out.println(Thread.currentThread().getName()+"抢占");
+            
+            TimeUnit.SECONDS.sleep(10);
+            System.out.println(Thread.currentThread().getName()+"离开");
+        } catch (Exception e){
+            e.printStackTrace();
+        } finally {
+            semaphore.release();
+        }
+        return "OK";
+    }
+
+
+    @RequestMapping("count")
+    public String count() {
+        RCountDownLatch countDownLatch = redissonClient.getCountDownLatch("count");
+        countDownLatch.trySetCount(3);
+        try {
+            countDownLatch.countDown();
+            System.out.println(Thread.currentThread().getName()+" in");
+
+            countDownLatch.await();
+            System.out.println("finish");
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return "OK";
+    }
 }
