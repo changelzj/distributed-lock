@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -42,8 +43,25 @@ public class WebController {
                     redisTemplate.opsForValue().set("num", Integer.toString(num));
                 }
             } finally {
+                // lua 防止一个线程超时已经取消锁，另一个线程建立新的锁后，又重复删去别人的锁
                 String lua = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
                 redisTemplate.execute(new DefaultRedisScript<>(lua, Long.class), Arrays.asList("lock"), uuid);
+
+                /*不采用脚本的删锁方式，事务
+                while (true) {
+                    redisTemplate.watch("lock");
+                    if (redisTemplate.opsForValue().get("lock").equals(uuid)) {
+                        redisTemplate.setEnableTransactionSupport(true);
+                        redisTemplate.multi();
+                        redisTemplate.delete("lock");
+                        List<Object> exec = redisTemplate.exec();
+                        if (exec == null) {
+                            continue;
+                        }
+                    }
+                    redisTemplate.unwatch();
+                    break;
+                }*/
             }
             
         }
@@ -71,7 +89,9 @@ public class WebController {
                 redisTemplate.opsForValue().set("num", Integer.toString(num));
             }
         } finally {
-            lock.unlock();
+            if (lock.isHeldByCurrentThread() && lock.isLocked()) {
+                lock.unlock();
+            }
             System.out.println("unlock...");
         }
         

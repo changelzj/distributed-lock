@@ -13,7 +13,7 @@ public class RedissonConfig {
     public RedissonClient redissonClient() {
         Config config = new Config();
         //config.useClusterServers().addNodeAddress("rediss://192.168.228.101:6379");
-        config.useSingleServer().setAddress("redis://192.168.228.101:6379");
+        config.useSingleServer().setAddress("redis://192.168.228.101:6379").setDatabase(0);
         return Redisson.create(config);
     }
     
